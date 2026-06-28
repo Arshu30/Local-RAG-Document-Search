@@ -1,0 +1,30 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Databases & local index cache
+db/
+test_db/
+*.faiss
+doc_map.json
+
+# Environment files
+.env
+.venv/
+venv/
+ENV/
+env/
+
+# Logs
+*.log
+
+# Documents/large data files
+*.pdf
+
+# Editor configurations
+.vscode/
+.idea/
+.DS_Store
