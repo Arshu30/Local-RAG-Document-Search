@@ -8,6 +8,7 @@ __pycache__/
 # Databases & local index cache
 db/
 test_db/
+temp/
 *.faiss
 doc_map.json
 
