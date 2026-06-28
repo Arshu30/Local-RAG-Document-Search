@@ -9,7 +9,8 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-from core.ingestion import extract_text_from_pdf, split_text
+# Instantiate the upgraded class-based metadata tracking architecture
+from core.ingestion import DocumentProcessor
 from core.indexing import FAISSVectorStore
 from core.generator import GeminiGenerator
 
@@ -27,8 +28,8 @@ if "messages" not in st.session_state:
 # Sidebar configurations
 st.sidebar.header("📁 Document & API Configuration")
 
-# API Key verification
-api_key = os.getenv("GEMINI_API_KEY")
+# API Key verification (Checks Cloud Secrets first, then Environment variables)
+api_key = st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
 if not api_key:
     api_key = st.sidebar.text_input(
         "Enter Gemini API Key:",
@@ -36,7 +37,7 @@ if not api_key:
         help="Required to generate answers. Get one from Google AI Studio."
     )
 else:
-    st.sidebar.success("Found API Key in Environment Variables.")
+    st.sidebar.success("Found API Key securely configured.")
 
 # Initialize generator if API Key is available
 if api_key:
@@ -74,17 +75,20 @@ if uploaded_file is not None:
         with st.sidebar:
             with st.spinner("Processing PDF and compiling vector index locally..."):
                 try:
-                    # Ingest and split text
-                    raw_text = extract_text_from_pdf(temp_path)
-                    chunks = split_text(raw_text)
+                    # Ingest using the upgraded class-based page tracking system
+                    processor = DocumentProcessor()
+                    chunks_with_meta = processor.process_document_with_metadata(temp_path)
                     
-                    if chunks:
-                        # Build vector store
-                        vector_store = FAISSVectorStore()
-                        vector_store.build_index(chunks)
+                    if chunks_with_meta:
+                        # Extract the raw text list for FAISS indexing
+                        raw_chunks = [item["text"] for item in chunks_with_meta]
                         
-                        # Store in session state
+                        vector_store = FAISSVectorStore()
+                        vector_store.build_index(raw_chunks)
+                        
+                        # Cache chunks list along with metadata inside the session state wrapper
                         st.session_state.vector_store = vector_store
+                        st.session_state.metadata_map = chunks_with_meta
                         st.session_state.processed_file = uploaded_file.name
                         st.sidebar.success("FAISS index compiled successfully!")
                     else:
@@ -106,7 +110,8 @@ for msg in st.session_state.messages:
         if "sources" in msg and msg["sources"]:
             with st.expander("Show Retrieved Context Chunks"):
                 for idx, source in enumerate(msg["sources"], 1):
-                    st.markdown(f"**Chunk [{idx}]** (Distance L2: {source['distance']:.4f}):")
+                    # Display matching absolute page number positions directly into the UI mapping 
+                    st.markdown(f"**Chunk [{idx}]** (Page: `{source['page']}` | Distance L2: `{source['distance']:.4f}`):")
                     st.write(source["text"])
                     st.divider()
 
@@ -128,7 +133,23 @@ if prompt := st.chat_input("Ask a question about the document..."):
             try:
                 search_results = st.session_state.vector_store.search(prompt, k=4)
                 context_chunks = [chunk for chunk, dist in search_results]
-                sources = [{"text": chunk, "distance": dist} for chunk, dist in search_results]
+                
+                # Cross-reference retrieved text with metadata_map to grab page metrics
+                sources = []
+                for chunk, dist in search_results:
+                    # Find matching chunk index to pull its relative page property
+                    page_num = "Unknown"
+                    if "metadata_map" in st.session_state:
+                        for meta in st.session_state.metadata_map:
+                            if meta["text"] == chunk:
+                                page_num = meta["page"]
+                                break
+                    
+                    sources.append({
+                        "text": chunk,
+                        "distance": dist,
+                        "page": page_num
+                    })
             except Exception as e:
                 st.error(f"Failed during vector search retrieval: {e}")
                 sources = []
@@ -150,7 +171,7 @@ if prompt := st.chat_input("Ask a question about the document..."):
             if sources:
                 with st.expander("Show Retrieved Context Chunks"):
                     for idx, source in enumerate(sources, 1):
-                        st.markdown(f"**Chunk [{idx}]** (Distance L2: {source['distance']:.4f}):")
+                        st.markdown(f"**Chunk [{idx}]** (Page: `{source['page']}` | Distance L2: `{source['distance']:.4f}`):")
                         st.write(source["text"])
                         st.divider()
 
