@@ -37,6 +37,8 @@ local-rag-search/
 ├── test_rag.py              # Headless continuous verification testing script
 ├── requirements.txt         # Package dependency manifest
 └── .gitignore               # System cache and index state exclusion
+```
+
 🛠️ Installation & Setup
 1. Clone the Workspace
 Bash
