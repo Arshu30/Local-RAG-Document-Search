@@ -44,11 +44,13 @@ local-rag-search/
 Bash
 git clone [https://github.com/Arshu30/Local-RAG-Document-Search.git](https://github.com/Arshu30/Local-RAG-Document-Search.git)
 cd Local-RAG-Document-Search
+
 2. Install Package Dependencies
 Ensure your local Python environment is initialized, then install the system manifest:
 
 Bash
 pip install -r requirements.txt
+
 3. Configure Authentication Environment
 The google-genai engine looks dynamically for standard environment keys. Export your credential string based on your terminal layout:
 
